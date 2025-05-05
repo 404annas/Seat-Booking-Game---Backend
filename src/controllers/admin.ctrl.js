@@ -17,9 +17,24 @@ const AdminController = {
     if(!totalSeats || !freeSeats || !paidSeats){
       return res.status(400).json({message:"Please provide all the fields"});
     }
+
+    // New validation for total seats vs free + paid seats
     if(totalSeats < freeSeats + paidSeats){
       return res.status(400).json({message:"Total seats should be greater than free and paid seats"});
     }
+
+    // Validate if number of paid seats matches seats with prices
+    const paidSeatsInArray = seats.filter(seat => seat.price > 0).length;
+    if(paidSeatsInArray !== paidSeats) {
+      return res.status(400).json({message: `Number of paid seats (${paidSeats}) does not match seats with prices (${paidSeatsInArray})`});
+    }
+
+    // Validate that paid seats have valid prices
+    const invalidPricedSeats = seats.filter(seat => seat.price <= 0 && seat.isPaid);
+    if(invalidPricedSeats.length > 0) {
+      return res.status(400).json({message: "All paid seats must have a valid price"});
+    }
+
     try {
       const gameId = await GenerateGameID();
       const isValidSeats = ValidateSeats(seats,res);
