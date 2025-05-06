@@ -1,6 +1,10 @@
 const mongoose  = require('mongoose');
 const SeatModel = require('./seat.model');
 const gameSchema = new mongoose.Schema({
+  gameName: {
+    type: String,
+    required: true,
+  },
   gameId: {
     type: String,
     required: true,

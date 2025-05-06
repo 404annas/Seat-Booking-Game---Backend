@@ -26,12 +26,13 @@ const UserController = {
       await newUser.save();
       return res.status(201).json({message: "User created successfully"});
     } catch (error) {
-      return res.status(500).json({message: "Internal server error"});
+      console.error(error.message);
+      return res.status(500).json({message: error.message});
     }
   },
   login : async (req,res) =>{
-     const {username, password ,role} = req.body;
-     if(!username || !password || !role ){
+     const {email, password ,role} = req.body;
+     if(!email || !password || !role ){
       return res.status(400).json({message: "Please fill all the fields"});
      }
     try {
@@ -41,7 +42,7 @@ const UserController = {
       }
 
     if(role === 'admin'){
-      const admin = await UserModel.findOne({username, role});
+      const admin = await UserModel.findOne({email, role});
       if(!admin){
         return res.status(400).json({message: "Admin not found"});
       }
@@ -53,7 +54,7 @@ const UserController = {
       return res.status(200).json({token, user:{id: admin._id, username: admin.username, email: admin.email, role: admin.role}});
     }
 
-    const user = await UserModel.findOne({username});
+    const user = await UserModel.findOne({email, role});
     if(!user){
       return res.status(400).json({message: "User not found"});
     }
@@ -101,7 +102,7 @@ const UserController = {
       return res.status(201).json({message: "Request created successfully"});
       
     } catch (error) {
-      return res.status(500).json({message: "Internal server error"});
+      return res.status(500).json({message: error.message});
     }
   },
   CreatePaymentIntent: async (req, res) => {
@@ -269,6 +270,66 @@ const UserController = {
         status: 'failed',
         message: error.response?.data?.message || 'Failed to process payment'
       });
+    }
+  },
+
+  UpdateProfile: async (req, res) => {
+    const userId = req.user._id;
+    const { username, email, currentPassword, newPassword } = req.body;
+
+    try {
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify current password
+      const isValidPassword = await user.comparePassword(currentPassword);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Check if email is already taken by another user
+      if (email !== user.email) {
+        const emailExists = await UserModel.findOne({ email, _id: { $ne: userId } });
+        if (emailExists) {
+          return res.status(400).json({ message: "Email is already in use" });
+        }
+      }
+
+      // Check if username is already taken by another user
+      if (username !== user.username) {
+        const usernameExists = await UserModel.findOne({ username, _id: { $ne: userId } });
+        if (usernameExists) {
+          return res.status(400).json({ message: "Username is already in use" });
+        }
+      }
+
+      // Update user data
+      user.username = username;
+      user.email = email;
+      if (newPassword) {
+        user.password = newPassword;
+      }
+
+      await user.save();
+
+      // Generate new token with updated information
+      const token = user.generateAuthToken();
+
+      return res.status(200).json({
+        message: "Profile updated successfully",
+        user: {
+          id: user._id,
+          username: user.username,
+          email: user.email,
+          role: user.role
+        },
+        token
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   }
 }

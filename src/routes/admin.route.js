@@ -9,6 +9,6 @@ AdminRoute.get('/listAllGames',authMiddleware,RoleValidation(['admin']), AdminCo
 AdminRoute.get('/listAllSeats/:gameId',authMiddleware,RoleValidation(['admin','user']), AdminController.ListAllSeats);
 AdminRoute.get('/listAllPendingRequest/:gameId',authMiddleware,RoleValidation(['admin']), AdminController.ListAllPendingRequest);
 AdminRoute.post('/update/requestStatus/:requestId',authMiddleware,RoleValidation(['admin']), AdminController.RequestStatusUpdate);
-
+AdminRoute.put('/update-profile',authMiddleware,RoleValidation(['admin']), AdminController.UpdateProfile);
 
 module.exports = AdminRoute;

@@ -5,7 +5,7 @@ const { sendStatusUpdate } = require('../services/Email.service');
 const UserModel = require('../models/user.model')
 const AdminController = {
   createGame : async (req,res)=>{
-    const {totalSeats , freeSeats , paidSeats , seats} = req.body;
+    const {totalSeats , freeSeats , paidSeats , seats , gameName} = req.body;
     
     if(!seats || seats.length === 0){
       return res.status(400).json({message:"Please provide the seats"});
@@ -14,7 +14,7 @@ const AdminController = {
       return res.status(400).json({message:"Please provide the correct number of seats"});
     }
 
-    if(!totalSeats || !freeSeats || !paidSeats){
+    if(!totalSeats || !freeSeats || !paidSeats || !gameName){
       return res.status(400).json({message:"Please provide all the fields"});
     }
 
@@ -52,6 +52,7 @@ const AdminController = {
 
       // Create game with seat references
       const game = await GameModel.create({
+        gameName,
         gameId,
         userId,
         totalSeats,
@@ -192,6 +193,65 @@ const AdminController = {
     } catch (error) {
       console.error(error);
       return res.status(500).json({message:"Internal server error"});
+    }
+  },
+  UpdateProfile: async (req, res) => {
+    const userId = req.user._id;
+    const { username, email, currentPassword, newPassword } = req.body;
+
+    try {
+      const admin = await UserModel.findById(userId);
+      if (!admin || admin.role !== 'admin') {
+        return res.status(404).json({ message: "Admin not found" });
+      }
+
+      // Verify current password
+      const isValidPassword = await admin.comparePassword(currentPassword);
+      if (!isValidPassword) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Check if email is already taken by another user
+      if (email !== admin.email) {
+        const emailExists = await UserModel.findOne({ email, _id: { $ne: userId } });
+        if (emailExists) {
+          return res.status(400).json({ message: "Email is already in use" });
+        }
+      }
+
+      // Check if username is already taken by another user
+      if (username !== admin.username) {
+        const usernameExists = await UserModel.findOne({ username, _id: { $ne: userId } });
+        if (usernameExists) {
+          return res.status(400).json({ message: "Username is already in use" });
+        }
+      }
+
+      // Update admin data
+      admin.username = username;
+      admin.email = email;
+      if (newPassword) {
+        admin.password = newPassword;
+      }
+
+      await admin.save();
+
+      // Generate new token with updated information
+      const token = admin.generateAuthToken();
+
+      return res.status(200).json({
+        message: "Profile updated successfully",
+        user: {
+          id: admin._id,
+          username: admin.username,
+          email: admin.email,
+          role: admin.role
+        },
+        token
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return res.status(500).json({ message: "Internal server error" });
     }
   }
 }

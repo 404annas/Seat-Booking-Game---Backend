@@ -34,7 +34,7 @@ const GameController = {
   },
   ListActiveGames: async (req,res)=>{
     try {
-      const games = await GameModel.find({status: 'active'}).populate('seats').populate('Approved_Users').populate('Pending_Requests');
+      const games = await GameModel.find({status: 'active'}).populate('seats').populate('Approved_Users').populate('Pending_Requests').sort({createdAt: -1});
       if(!games || games.length === 0){
         return res.status(404).json({message:"No active games found"});
       }
