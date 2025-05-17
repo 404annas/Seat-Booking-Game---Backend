@@ -17,11 +17,17 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  resetPasswordOTP: {
+    type: String,
+  },
+  resetPasswordOTPExpiry: {
+    type: Date,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
   },
-  role:{
+  role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user',
@@ -29,9 +35,9 @@ const userSchema = new mongoose.Schema({
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
@@ -42,14 +48,14 @@ userSchema.pre('save', async function(next) {
 });
 
 // Method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
-userSchema.methods.generateAuthToken = function() {
+userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
-    { _id: this._id, username: this.username, email: this.email, role: this.role }, 
-    process.env.JWT_SECRET, 
+    { _id: this._id, username: this.username, email: this.email, role: this.role },
+    process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );
   return token;

@@ -5,6 +5,9 @@ const UserController = require('../controllers/user.ctrl');
 
 UserRoute.post('/register', UserController.register);
 UserRoute.post('/login', UserController.login);
+UserRoute.post('/forgot-password', UserController.forgotPassword);
+UserRoute.post('/verify-otp', UserController.verifyOTP);
+UserRoute.post('/reset-password', UserController.resetPassword);
 UserRoute.post('/request', authMiddleware, UserController.MakeRequest);
 UserRoute.post('/create-payment-intent', authMiddleware, UserController.CreatePaymentIntent);
 UserRoute.post('/process-payment', authMiddleware, UserController.ProcessPayment);

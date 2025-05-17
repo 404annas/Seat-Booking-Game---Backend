@@ -3,18 +3,131 @@ const RequestModel = require('../models/request.model');
 const GameModel = require('../models/game.model');
 const SeatModel = require('../models/seat.model');
 const PaymentService = require('../services/payment.service');
+const EmailService = require('../services/Email.service');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const axios = require('axios');
 
 const UserController = {
-  register : async (req,res) =>{
-    const {username, password, email , role } = req.body;
-    if( !username || !password || !email || !role ){
-      return res.status(400).json({message: "Please fill all the fields"});
+  forgotPassword: async (req, res) => {
+    try {
+      const { email, role } = req.body;
+
+      if (!email || !role || typeof email !== 'string') {
+        return res.status(400).json({ message: "Invalid email or role" });
+      }
+
+      // Find user with email and role
+      const user = await UserModel.findOne({
+        email: email.trim(),
+        role: role.trim()
+      });
+
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // Hash OTP before saving
+      const hashedOTP = await bcrypt.hash(otp, 10);
+
+      // Save OTP and expiry to user document
+      user.resetPasswordOTP = hashedOTP;
+      user.resetPasswordOTPExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
+      await user.save();
+
+      // Send OTP via email
+      await EmailService.sendOTPEmail(email, otp);
+
+      res.status(200).json({ message: "OTP sent successfully to your email" });
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ message: "Error processing request" });
+    }
+  },
+
+  verifyOTP: async (req, res) => {
+    try {
+      const { email, otp } = req.body;
+
+      const user = await UserModel.findOne({
+        email,
+        resetPasswordOTPExpiry: { $gt: Date.now() }
+      });
+
+      if (!user) {
+        return res.status(400).json({ message: "Invalid request or OTP expired" });
+      }
+
+      // Verify OTP
+      const isValidOTP = await bcrypt.compare(otp, user.resetPasswordOTP);
+      if (!isValidOTP) {
+        return res.status(400).json({ message: "Invalid OTP" });
+      }
+
+      // Generate temporary token for password reset
+      const tempToken = jwt.sign(
+        { userId: user._id, purpose: 'reset-password' },
+        process.env.JWT_SECRET,
+        { expiresIn: '10m' }
+      );
+
+      res.status(200).json({ message: "OTP verified successfully", tempToken });
+    } catch (error) {
+      console.error("OTP verification error:", error);
+      res.status(500).json({ message: "Error verifying OTP" });
+    }
+  },
+  resetPassword: async (req, res) => {
+    try {
+      const { newPassword } = req.body;
+      const tempToken = req.headers.authorization?.split(' ')[1];
+
+      if (!tempToken) {
+        return res.status(401).json({ message: "No token provided" });
+      }
+
+      // Verify temp token
+      const decoded = jwt.verify(tempToken, process.env.JWT_SECRET);
+      if (decoded.purpose !== 'reset-password') {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+
+      const user = await UserModel.findById(decoded.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Set the new password (it will be hashed by the pre-save middleware)
+      user.password = newPassword;
+      user.resetPasswordOTP = undefined;
+      user.resetPasswordOTPExpiry = undefined;
+      await user.save();
+
+      res.status(200).json({ message: "Password reset successful" });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      if (error.name === 'JsonWebTokenError') {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: "Token expired" });
+      }
+      res.status(500).json({ message: "Error resetting password" });
+    }
+  },
+
+  register: async (req, res) => {
+    const { username, password, email, role } = req.body;
+    if (!username || !password || !email || !role) {
+      return res.status(400).json({ message: "Please fill all the fields" });
     }
     try {
-      const User = await UserModel.findOne({username});
-      if(User){
-        return res.status(400).json({message: "User already exists"});
+      const User = await UserModel.findOne({ username });
+      if (User) {
+        return res.status(400).json({ message: "User already exists" });
       }
 
       const newUser = new UserModel({
@@ -24,62 +137,62 @@ const UserController = {
         role
       });
       await newUser.save();
-      return res.status(201).json({message: "User created successfully"});
+      return res.status(201).json({ message: "User created successfully" });
     } catch (error) {
       console.error(error.message);
-      return res.status(500).json({message: error.message});
+      return res.status(500).json({ message: error.message });
     }
   },
-  login : async (req,res) =>{
-     const {email, password ,role} = req.body;
-     if(!email || !password || !role ){
-      return res.status(400).json({message: "Please fill all the fields"});
-     }
+  login: async (req, res) => {
+    const { email, password, role } = req.body;
+    if (!email || !password || !role) {
+      return res.status(400).json({ message: "Please fill all the fields" });
+    }
     try {
 
-      if(role !== 'user' && role !== 'admin'){
-        return res.status(400).json({message: "Invalid role"});
+      if (role !== 'user' && role !== 'admin') {
+        return res.status(400).json({ message: "Invalid role" });
       }
 
-    if(role === 'admin'){
-      const admin = await UserModel.findOne({email, role});
-      if(!admin){
-        return res.status(400).json({message: "Admin not found"});
+      if (role === 'admin') {
+        const admin = await UserModel.findOne({ email, role });
+        if (!admin) {
+          return res.status(400).json({ message: "Admin not found" });
+        }
+        const isMatch = await admin.comparePassword(password);
+        if (!isMatch) {
+          return res.status(400).json({ message: "Invalid credentials" });
+        }
+        const token = admin.generateAuthToken();
+        return res.status(200).json({ token, user: { id: admin._id, username: admin.username, email: admin.email, role: admin.role } });
       }
-      const isMatch = await admin.comparePassword(password);
-      if(!isMatch){
-        return res.status(400).json({message: "Invalid credentials"});
-      }
-      const token = admin.generateAuthToken();
-      return res.status(200).json({token, user:{id: admin._id, username: admin.username, email: admin.email, role: admin.role}});
-    }
 
-    const user = await UserModel.findOne({email, role});
-    if(!user){
-      return res.status(400).json({message: "User not found"});
-    }
-    const isMatch = await user.comparePassword(password);
-    if(!isMatch){
-      return res.status(400).json({message: "Invalid credentials"});
-    }
-    const token = user.generateAuthToken();
-    return res.status(200).json({token, user:{id: user._id, username: user.username, email: user.email, role: user.role}});
-      
+      const user = await UserModel.findOne({ email, role });
+      if (!user) {
+        return res.status(400).json({ message: "User not found" });
+      }
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(400).json({ message: "Invalid credentials" });
+      }
+      const token = user.generateAuthToken();
+      return res.status(200).json({ token, user: { id: user._id, username: user.username, email: user.email, role: user.role } });
+
     } catch (error) {
       console.error(error);
-      return res.status(500).json({message: "Internal server error"});
+      return res.status(500).json({ message: "Internal server error" });
     }
   },
-  MakeRequest : async (req,res) =>{
-   const {gameId} = req.body;
+  MakeRequest: async (req, res) => {
+    const { gameId } = req.body;
     const userId = req.user._id;
-    if(!gameId){
-      return res.status(400).json({message: "Please fill all the fields"});
+    if (!gameId) {
+      return res.status(400).json({ message: "Please fill all the fields" });
     }
     try {
-      const request = await RequestModel.findOne({userId, gameId});
-      if(request){
-        return res.status(400).json({message: "Request already exists"});
+      const request = await RequestModel.findOne({ userId, gameId });
+      if (request) {
+        return res.status(400).json({ message: "Request already exists" });
       }
 
       const newRequest = new RequestModel({
@@ -87,22 +200,22 @@ const UserController = {
         gameId
       });
 
-      if(!newRequest){
-        return res.status(400).json({message: "Request not created"});
+      if (!newRequest) {
+        return res.status(400).json({ message: "Request not created" });
       }
 
       await newRequest.save();
 
       const game = await GameModel.findById(gameId);
-      if(!game){
-        return res.status(400).json({message: "Game not found"});
+      if (!game) {
+        return res.status(400).json({ message: "Game not found" });
       }
       game.Pending_Requests.push(newRequest._id);
       await game.save();
-      return res.status(201).json({message: "Request created successfully"});
-      
+      return res.status(201).json({ message: "Request created successfully" });
+
     } catch (error) {
-      return res.status(500).json({message: error.message});
+      return res.status(500).json({ message: error.message });
     }
   },
   CreatePaymentIntent: async (req, res) => {
@@ -121,7 +234,7 @@ const UserController = {
 
       console.log('Found game:', game);
       console.log('Game seats:', JSON.stringify(game.seats, null, 2));
-      
+
       // Log each seat's number and type for debugging
       game.seats.forEach(seat => {
         console.log(`Seat ${seat._id}:`, {
@@ -144,7 +257,7 @@ const UserController = {
       }
 
       const paymentIntent = await PaymentService.createPaymentIntent(seat.price, seat._id, gameId);
-      
+
       return res.status(200).json({
         clientSecret: paymentIntent.client_secret,
         amount: seat.price
