@@ -11,6 +11,7 @@ UserRoute.post('/reset-password', UserController.resetPassword);
 UserRoute.post('/request', authMiddleware, UserController.MakeRequest);
 UserRoute.post('/create-payment-intent', authMiddleware, UserController.CreatePaymentIntent);
 UserRoute.post('/process-payment', authMiddleware, UserController.ProcessPayment);
+UserRoute.post('/test-book-seat', authMiddleware, UserController.TestBookSeat); // Test route for direct booking
 UserRoute.post('/select-seat', authMiddleware, UserController.SelectSeat);
 UserRoute.put('/update-profile', authMiddleware, UserController.UpdateProfile);
 

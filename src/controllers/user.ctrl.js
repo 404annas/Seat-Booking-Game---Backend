@@ -9,6 +9,61 @@ const bcrypt = require('bcrypt');
 const axios = require('axios');
 
 const UserController = {
+  TestBookSeat: async (req, res) => {
+    const { gameId, seatNumber } = req.body;
+    const userId = req.user._id;
+
+    if (!gameId || !seatNumber) {
+      return res.status(400).json({ message: "Please provide gameId and seatNumber" });
+    }
+
+    try {
+      const game = await GameModel.findById(gameId).populate('seats');
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      if (game.status === 'ended') {
+        return res.status(400).json({ message: "Game has already ended" });
+      }
+
+      // Find the selected seat
+      const seat = game.seats.find(seat => seat.seatNumber === Number(seatNumber));
+      if (!seat) {
+        return res.status(404).json({ message: "Seat not found" });
+      }
+
+      if (seat.isOccupied) {
+        return res.status(400).json({ message: "Seat is already occupied" });
+      }
+
+      // Update seat status directly without payment
+      await SeatModel.findByIdAndUpdate(seat._id, {
+        isOccupied: true,
+        userId: userId,
+        BookedAt: new Date()
+      });
+
+      // Check if all seats are occupied
+      const updatedGame = await GameModel.findById(gameId).populate('seats');
+      const allSeatsOccupied = updatedGame.seats.every(seat => seat.isOccupied);
+      if (allSeatsOccupied) {
+        updatedGame.status = 'ended';
+        await updatedGame.save();
+      }
+
+      return res.status(200).json({
+        message: "Seat booked successfully (TEST MODE)",
+        seat: await SeatModel.findById(seat._id),
+        gameStatus: updatedGame.status
+      });
+
+    } catch (error) {
+      console.error('Error in TestBookSeat:', error);
+      return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
   forgotPassword: async (req, res) => {
     try {
       const { email, role } = req.body;
