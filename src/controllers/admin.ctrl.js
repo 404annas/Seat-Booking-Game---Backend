@@ -3,9 +3,21 @@ const RequestModel = require('../models/request.model');
 const SeatModel = require('../models/seat.model');
 const { sendStatusUpdate } = require('../services/Email.service');
 const UserModel = require('../models/user.model')
+const { uploadToCloudinary } = require('../config/cloudinary');
+
 const AdminController = {
   createGame: async (req, res) => {
-    const { totalSeats, freeSeats, paidSeats, seats, gameName } = req.body;
+    const {
+      totalSeats,
+      freeSeats,
+      paidSeats,
+      seats,
+      gameName,
+      description,
+      additionalInfo,
+      universalGift,
+      universalGiftImage
+    } = req.body;
 
     if (!seats || seats.length === 0) {
       return res.status(400).json({ message: "Please provide the seats" });
@@ -47,7 +59,8 @@ const AdminController = {
       const createdSeats = await SeatModel.create(seats.map(seat => ({
         seatNumber: seat.seatNumber,
         price: seat.price,
-        gift: seat?.gift || null
+        gift: seat?.gift || universalGift || null,
+        giftImage: seat?.giftImage || universalGiftImage || null
       })));
 
       // Create game with seat references
@@ -55,6 +68,10 @@ const AdminController = {
         gameName,
         gameId,
         userId,
+        description,
+        additionalInfo,
+        universalGift,
+        universalGiftImage,
         totalSeats,
         freeSeats,
         paidSeats,
@@ -103,14 +120,21 @@ const AdminController = {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
     }
-  },
-  ListAllSeats: async (req, res) => {
+  }, ListAllSeats: async (req, res) => {
     const gameId = req.params.gameId;
     if (!gameId) {
       return res.status(400).json({ message: "Please provide the gameId" });
     }
     try {
-      const game = await GameModel.findById(gameId).populate('seats');
+      const game = await GameModel.findById(gameId)
+        .populate({
+          path: 'seats',
+          populate: {
+            path: 'userId',
+            select: 'username email' // Only select the fields we need
+          }
+        });
+
       if (!game) {
         return res.status(404).json({ message: "Game not found" });
       }
@@ -252,6 +276,23 @@ const AdminController = {
     } catch (error) {
       console.error('Error updating profile:', error);
       return res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  uploadImage: async (req, res) => {
+    try {
+      // The image URL will be added to req.body.imageUrl by the handleImageUpload middleware
+      if (!req.body.imageUrl) {
+        return res.status(400).json({ message: 'No image URL available' });
+      }
+
+      return res.status(200).json({
+        message: 'Image uploaded successfully',
+        imageUrl: req.body.imageUrl
+      });
+    } catch (error) {
+      console.error('Error in uploadImage controller:', error);
+      return res.status(500).json({ message: 'Failed to process image upload' });
     }
   }
 }

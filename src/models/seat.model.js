@@ -12,6 +12,9 @@ const seatSchema = new mongoose.Schema({
   gift: {
     type: String,
   },
+  giftImage: {
+    type: String,
+  },
   isOccupied: {
     type: Boolean,
     default: false

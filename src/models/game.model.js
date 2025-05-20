@@ -1,4 +1,4 @@
-const mongoose  = require('mongoose');
+const mongoose = require('mongoose');
 const SeatModel = require('./seat.model');
 const gameSchema = new mongoose.Schema({
   gameName: {
@@ -9,37 +9,69 @@ const gameSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  description: {
+    type: String,
+    default: '',
+  },
+  additionalInfo: {
+    type: String,
+    default: '',
+  },
+  universalGift: {
+    type: String,
+    default: '',
+  },
+  universalGiftImage: {
+    type: String,
+    default: '',
+  },
+  description: {
+    type: String,
+    default: ''
+  },
+  additionalInfo: {
+    type: String,
+    default: ''
+  },
+  universalGift: {
+    type: String,
+    default: ''
+  },
+  universalGiftImage: {
+    type: String,
+    default: ''
+  },
   status: {
     type: String,
     enum: ['active', 'ended'],
     default: 'active',
   },
-  totalSeats:{
+  totalSeats: {
     type: Number,
     required: true,
   },
-  freeSeats:{
+  freeSeats: {
     type: Number,
     required: true,
   },
-  paidSeats:{
+  paidSeats: {
     type: Number,
     required: true,
   },
-  Approved_Users :[
+  Approved_Users: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
   ],
   //take the reference from the seats model
-  seats:[
+  seats: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Seat',
     }
   ],
-  Pending_Requests :[
+  Pending_Requests: [
     {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Request',

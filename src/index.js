@@ -2,11 +2,17 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const fileUpload = require('express-fileupload');
 const app = express();
 
 const origin = process.env.ORIGIN || "http://localhost:5173";
 
 //middle wares 
+app.use(fileUpload({
+  useTempFiles: true,
+  tempFileDir: '/tmp/',
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+}));
 app.use(cors({
   origin: origin,
   credentials: true,

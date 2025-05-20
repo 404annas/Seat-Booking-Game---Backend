@@ -27,6 +27,12 @@ const UserController = {
         return res.status(400).json({ message: "Game has already ended" });
       }
 
+      // Check if user has already booked a seat in this game
+      const existingBooking = game.seats.find(seat => seat.userId && seat.userId.toString() === userId.toString());
+      if (existingBooking) {
+        return res.status(400).json({ message: "You have already booked a seat in this game" });
+      }
+
       // Find the selected seat
       const seat = game.seats.find(seat => seat.seatNumber === Number(seatNumber));
       if (!seat) {
@@ -341,8 +347,14 @@ const UserController = {
         return res.status(400).json({ message: "Game has already ended" });
       }
 
+      // Check if user has already booked a seat in this game
+      const existingBooking = game.seats.find(seat => seat.userId && seat.userId.toString() === userId.toString());
+      if (existingBooking) {
+        return res.status(400).json({ message: "You have already booked a seat in this game" });
+      }
+
       // Find the selected seat
-      const seat = game.seats.find(seat => seat.seatNumber === seatNumber);
+      const seat = game.seats.find(seat => seat.seatNumber === Number(seatNumber));
       if (!seat) {
         return res.status(404).json({ message: "Seat not found" });
       }
