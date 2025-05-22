@@ -6,6 +6,75 @@ const UserModel = require('../models/user.model')
 const { uploadToCloudinary } = require('../config/cloudinary');
 
 const AdminController = {
+  declareWinners: async (req, res) => {
+    const { gameId, seatIds } = req.body;
+
+    if (!gameId || !seatIds || !Array.isArray(seatIds) || seatIds.length === 0) {
+      return res.status(400).json({ message: "Please provide gameId and an array of seat IDs" });
+    }
+
+    try {
+      const game = await GameModel.findById(gameId).populate('seats');
+
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }      // Ensure game is ended before declaring winners
+      if (game.status !== 'ended') {
+        return res.status(400).json({ message: "Game must be ended before declaring winners" });
+      }
+
+      // Get currently selected seats to validate
+      const selectedSeats = await SeatModel.find({ _id: { $in: seatIds } }).populate('userId');
+
+      // Check if all seats are valid
+      for (const seat of selectedSeats) {
+        if (!seat.isOccupied || !seat.userId) {
+          return res.status(400).json({
+            message: `Seat ${seat.seatNumber} is not eligible to be declared as a winner. Only occupied seats can be winners.`
+          });
+        }
+        if (seat.isWinner) {
+          return res.status(400).json({
+            message: `Seat ${seat.seatNumber} has already been declared as a winner.`
+          });
+        }
+      }
+
+      // Update all selected seats as winners
+      await SeatModel.updateMany(
+        { _id: { $in: seatIds } },
+        {
+          isWinner: true,
+          declaredWinnerAt: new Date()
+        }
+      );
+
+      // Notify winners via email
+      const winners = await SeatModel.find({ _id: { $in: seatIds } }).populate('userId');
+      for (const seat of winners) {
+        if (seat.userId && seat.userId.email) {
+          await sendStatusUpdate(
+            seat.userId.email,
+            "Congratulations! You're a Winner!",
+            `Your seat number ${seat.seatNumber} has been declared a winner!`
+          );
+        }
+      }
+
+      return res.status(200).json({
+        message: "Winners declared successfully",
+        winners: winners.map(seat => ({
+          seatNumber: seat.seatNumber,
+          userName: seat.userId ? seat.userId.username : 'Unknown'
+        }))
+      });
+
+    } catch (error) {
+      console.error('Error declaring winners:', error);
+      return res.status(500).json({ message: "Failed to declare winners" });
+    }
+  },
+
   createGame: async (req, res) => {
     const {
       totalSeats,
@@ -16,8 +85,17 @@ const AdminController = {
       description,
       additionalInfo,
       universalGift,
-      universalGiftImage
+      universalGiftImage,
+      gameImage
     } = req.body;
+
+    console.log('Creating game with data:', {
+      gameName,
+      gameImage,
+      totalSeats,
+      freeSeats,
+      paidSeats
+    });
 
     if (!seats || seats.length === 0) {
       return res.status(400).json({ message: "Please provide the seats" });
@@ -61,13 +139,12 @@ const AdminController = {
         price: seat.price,
         gift: seat?.gift || universalGift || null,
         giftImage: seat?.giftImage || universalGiftImage || null
-      })));
-
-      // Create game with seat references
+      })));      // Create game with seat references
       const game = await GameModel.create({
         gameName,
         gameId,
         userId,
+        gameImage,
         description,
         additionalInfo,
         universalGift,
@@ -138,14 +215,13 @@ const AdminController = {
       if (!game) {
         return res.status(404).json({ message: "Game not found" });
       }
-      if (game.status === 'ended') {
-        return res.status(400).json({ message: "Game already ended" });
-      }
+
       const seats = game.seats;
+      const GameStatus = game.status;
       if (!seats || seats.length === 0) {
         return res.status(404).json({ message: "No seats found" });
       }
-      return res.status(200).json(seats);
+      return res.status(200).json({ seats, GameStatus });
     } catch (error) {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
@@ -278,10 +354,13 @@ const AdminController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
-
   uploadImage: async (req, res) => {
     try {
       // The image URL will be added to req.body.imageUrl by the handleImageUpload middleware
+      if (!req.files || (!req.files.giftImage && !req.files.gameImage)) {
+        return res.status(400).json({ message: 'No image file uploaded' });
+      }
+
       if (!req.body.imageUrl) {
         return res.status(400).json({ message: 'No image URL available' });
       }

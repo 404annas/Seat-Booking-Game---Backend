@@ -25,15 +25,15 @@ const uploadToCloudinary = (file) => {
     // If we have a buffer instead of a path, we need to handle it differently
     if (!file.tempFilePath && file.data) {
       uploadOptions.file = `data:${file.mimetype};base64,${file.data.toString('base64')}`;
-    }
-
-    cloudinary.uploader.upload(
+    } cloudinary.uploader.upload(
       file.tempFilePath || uploadOptions.file,
       uploadOptions,
       (error, result) => {
         if (error) {
           console.error('Cloudinary upload error:', error);
           reject(error);
+        } else if (!result || !result.secure_url) {
+          reject(new Error('Invalid response from Cloudinary'));
         } else {
           resolve(result);
         }

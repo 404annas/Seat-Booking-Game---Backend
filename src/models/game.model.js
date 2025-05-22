@@ -9,6 +9,10 @@ const gameSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  gameImage: {
+    type: String,
+    default: '',
+  },
   description: {
     type: String,
     default: '',
@@ -24,22 +28,6 @@ const gameSchema = new mongoose.Schema({
   universalGiftImage: {
     type: String,
     default: '',
-  },
-  description: {
-    type: String,
-    default: ''
-  },
-  additionalInfo: {
-    type: String,
-    default: ''
-  },
-  universalGift: {
-    type: String,
-    default: ''
-  },
-  universalGiftImage: {
-    type: String,
-    default: ''
   },
   status: {
     type: String,

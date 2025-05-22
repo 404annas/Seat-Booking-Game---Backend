@@ -27,6 +27,14 @@ const seatSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  isWinner: {
+    type: Boolean,
+    default: false
+  },
+  declaredWinnerAt: {
+    type: Date,
+    default: null
+  }
 })
 
 const Seat = mongoose.model('Seat', seatSchema);

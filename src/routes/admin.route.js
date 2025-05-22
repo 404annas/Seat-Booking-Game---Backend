@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const { handleImageUpload } = require('../middleware/upload');
 
 AdminRoute.post('/createGame', authMiddleware, RoleValidation(['admin']), handleImageUpload, AdminController.createGame);
+AdminRoute.post('/declareWinners', authMiddleware, RoleValidation(['admin']), AdminController.declareWinners);
 AdminRoute.post('/endGame/:gameId', authMiddleware, RoleValidation(['admin']), AdminController.EndGame);
 AdminRoute.get('/listAllGames', authMiddleware, RoleValidation(['admin']), AdminController.ListAllGames);
 AdminRoute.get('/listAllSeats/:gameId', authMiddleware, RoleValidation(['admin', 'user']), AdminController.ListAllSeats);

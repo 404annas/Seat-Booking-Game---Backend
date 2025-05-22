@@ -55,7 +55,8 @@ const GameController = {
       console.error(error);
       return res.status(500).json({ message: "Internal server error" });
     }
-  }, GetLeaderboard: async (req, res) => {
+  },
+  GetLeaderboard: async (req, res) => {
     const gameId = req.params.gameId;
     if (!gameId) {
       return res.status(400).json({ message: "Please provide the gameId" });
@@ -79,18 +80,50 @@ const GameController = {
         return res.status(404).json({ message: "No seats found" });
       }
 
-      // Filter only occupied free seats (price = 0)
-      const freeOccupiedSeats = seats.filter(seat =>
-        seat.isOccupied &&
-        seat.userId &&
-        (seat.price === 0 || !seat.price)
-      );
+      // Filter occupied seats and identify winners
+      const occupiedSeats = seats.filter(seat => seat.isOccupied && seat.userId);
 
-      // Prepare response with game details and leaderboard
+      // Create main leaderboard
+      const leaderboard = occupiedSeats.map(seat => ({
+        seatId: seat._id,
+        seatNumber: seat.seatNumber,
+        userName: seat.userId ? seat.userId.username : null,
+        gift: seat.gift || game.universalGift || null,
+        giftImage: seat.giftImage || game.universalGiftImage || null,
+        dateBooked: seat.dateBooked,
+        user: seat.userId ? {
+          id: seat.userId._id,
+          username: seat.userId.username,
+          email: seat.userId.email,
+          profileImage: seat.userId.profileImage
+        } : null
+      })).sort((a, b) => a.seatNumber - b.seatNumber);
+
+      // Filter and sort winners
+      const winners = occupiedSeats
+        .filter(seat => seat.isWinner)
+        .map(seat => ({
+          seatId: seat._id,
+          seatNumber: seat.seatNumber,
+          userName: seat.userId ? seat.userId.username : null,
+          gift: seat.gift || game.universalGift || null,
+          giftImage: seat.giftImage || game.universalGiftImage || null,
+          declaredWinnerAt: seat.declaredWinnerAt,
+          user: seat.userId ? {
+            id: seat.userId._id,
+            username: seat.userId.username,
+            email: seat.userId.email,
+            profileImage: seat.userId.profileImage
+          } : null
+        }))
+        .sort((a, b) => a.declaredWinnerAt - b.declaredWinnerAt);
+
+      // Prepare response with game details, leaderboard and winners
       const response = {
         gameDetails: {
           id: game._id,
           gameName: game.gameName,
+          gameImage: game.gameImage,
           description: game.description,
           additionalInfo: game.additionalInfo,
           universalGift: game.universalGift,
@@ -98,21 +131,11 @@ const GameController = {
           totalSeats: game.totalSeats,
           freeSeats: game.freeSeats,
           paidSeats: game.paidSeats,
-          freeSeatsAwarded: freeOccupiedSeats.length
-        }, leaderboard: freeOccupiedSeats.map(seat => ({
-          seatId: seat._id,
-          seatNumber: seat.seatNumber,
-          userName: seat.userId ? seat.userId.username : null,
-          gift: seat.gift || game.universalGift || null,
-          giftImage: seat.giftImage || game.universalGiftImage || null,
-          dateBooked: seat.dateBooked,
-          user: seat.userId ? {
-            id: seat.userId._id,
-            username: seat.userId.username,
-            email: seat.userId.email,
-            profileImage: seat.userId.profileImage
-          } : null
-        })).sort((a, b) => a.seatNumber - b.seatNumber)
+          freeSeatsAwarded: occupiedSeats.filter(seat => (seat.price === 0 || !seat.price)).length,
+          status: game.status
+        },
+        leaderboard,
+        winners
       };
 
       return res.status(200).json(response);

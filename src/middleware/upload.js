@@ -3,15 +3,13 @@ const { uploadToCloudinary } = require('../config/cloudinary');
 const handleImageUpload = async (req, res, next) => {
   try {
     // Initialize req.body if it doesn't exist
-    req.body = req.body || {};
-
-    // Check if a file was uploaded
-    if (!req.files || !req.files.giftImage) {
+    req.body = req.body || {};    // Check if a file was uploaded
+    if (!req.files || (!req.files.giftImage && !req.files.gameImage)) {
       // No file uploaded, continue without processing
       return next();
     }
 
-    const file = req.files.giftImage;
+    const file = req.files.giftImage || req.files.gameImage;
 
     // Validate file type
     if (!file.mimetype.startsWith('image/')) {
