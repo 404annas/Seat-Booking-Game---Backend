@@ -187,11 +187,7 @@ const GameController = {
 
   DeleteGame: async (req, res) => {
     try {
-      const { role } = req.user;
       const gameId = req.params.gameId;
-      if (role !== 'admin') {
-        return res.status(403).json({ message: "You are not authorized to delete this game" });
-      }
       if (!gameId) {
         return res.status(400).json({ message: "Please provide the gameId" });
       }
