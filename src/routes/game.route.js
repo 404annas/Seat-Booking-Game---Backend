@@ -12,5 +12,6 @@ GameRoute.get("/listNonActiveGames", GameController.ListNonActiveGames);
 GameRoute.get("/listLatestGame", GameController.ListLatestNonActiveGame);
 GameRoute.get("/leaderboard/:gameId", GameController.GetLeaderboard);
 GameRoute.delete("/deleteGame/:gameId", authMiddleware, RoleValidation(["admin"]), GameController.DeleteGame);
+GameRoute.put("/updatePinnedStatus/:gameId", authMiddleware, RoleValidation(["admin"]), GameController.UpdatePinnedStatus);
 
 module.exports = GameRoute;

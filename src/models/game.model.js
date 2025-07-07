@@ -69,6 +69,7 @@ const gameSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  isPinned: { type: Boolean, default: false },
 })
 
 const Game = mongoose.model('Game', gameSchema);

@@ -208,6 +208,31 @@ const GameController = {
         error: error.message
       })
     }
+  },
+  UpdatePinnedStatus: async (req, res) => {
+    try {
+      const gameId = req.params.gameId;
+      const { isPinned } = req.body;
+
+      if (typeof isPinned !== "boolean") {
+        return res.status(400).json({ message: "Invalid request body" });
+      }
+
+      const game = await GameModel.findById(gameId);
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      game.isPinned = isPinned;
+      await game.save();
+
+      return res.status(200).json({ message: "Pinned status updated successfully" });
+    } catch (error) {
+      res.status(500).json({
+        message: "Internal server error",
+        error: error.message
+      });
+    }
   }
 };
 
