@@ -126,11 +126,11 @@ const GameController = {
           dateBooked: seat.dateBooked,
           user: seat.userId
             ? {
-                id: seat.userId._id,
-                username: seat.userId.username,
-                email: seat.userId.email,
-                profileImage: seat.userId.profileImage,
-              }
+              id: seat.userId._id,
+              username: seat.userId.username,
+              email: seat.userId.email,
+              profileImage: seat.userId.profileImage,
+            }
             : null,
         }))
         .sort((a, b) => a.seatNumber - b.seatNumber);
@@ -147,11 +147,11 @@ const GameController = {
           declaredWinnerAt: seat.declaredWinnerAt,
           user: seat.userId
             ? {
-                id: seat.userId._id,
-                username: seat.userId.username,
-                email: seat.userId.email,
-                profileImage: seat.userId.profileImage,
-              }
+              id: seat.userId._id,
+              username: seat.userId.username,
+              email: seat.userId.email,
+              profileImage: seat.userId.profileImage,
+            }
             : null,
         }))
         .sort((a, b) => a.declaredWinnerAt - b.declaredWinnerAt);
@@ -184,6 +184,35 @@ const GameController = {
       return res.status(500).json({ message: "Internal server error" });
     }
   },
+
+  DeleteGame: async (req, res) => {
+    try {
+      const { role } = req.user;
+      const gameId = req.params.gameId;
+      if (role !== 'admin') {
+        return res.status(403).json({ message: "You are not authorized to delete this game" });
+      }
+      if (!gameId) {
+        return res.status(400).json({ message: "Please provide the gameId" });
+      }
+      const game = await GameModel.findById(gameId);
+      if (!game) {
+        return res.status(404).json({ message: "Game not found" });
+      }
+
+      if (game.status != 'ended') {
+        return res.status(400).json({ message: "Game is still active, cannot delete" });
+      }
+
+      await GameModel.findByIdAndDelete(gameId);
+      return res.status(200).json({ message: "Game deleted successfully" });
+    } catch (error) {
+      res.status(500).json({
+        message: "Internal server error",
+        error: error.message
+      })
+    }
+  }
 };
 
 module.exports = GameController;
