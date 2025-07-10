@@ -1,9 +1,13 @@
 const GameModel = require("../models/game.model");
 const RequestModel = require("../models/request.model");
 const SeatModel = require("../models/seat.model");
-const { sendStatusUpdate } = require("../services/Email.service");
+const {
+  sendStatusUpdate,
+  sendGameNotification,
+} = require("../services/Email.service");
 const UserModel = require("../models/user.model");
 const { uploadToCloudinary } = require("../config/cloudinary");
+const User = require("../models/user.model");
 
 const AdminController = {
   declareWinners: async (req, res) => {
@@ -241,7 +245,13 @@ const AdminController = {
         paidSeats,
         seats: createdSeats.map((seat) => seat._id),
       });
-
+      const users = await UserModel.find({}, "email");
+      await sendGameNotification(users, {
+        id: game?.id,
+        gameName: game?.gameName,
+        description: game?.description,
+        gameImage: game?.gameImage,
+      });
       return res
         .status(200)
         .json({ message: "Game created successfully", game });
@@ -479,6 +489,23 @@ const AdminController = {
       return res
         .status(500)
         .json({ message: "Failed to process image upload" });
+    }
+  },
+  getAllUsers: async (req, res) => {
+    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
+
+    try {
+      const users = await User.find().limit(limit).sort({ createdAt: -1 });
+
+      if (!users) return res.status(404).json({ message: "No User Found" });
+      const totalUsers = await User.countDocuments();
+      return res
+        .status(200)
+        .json({ message: "All Users", Allusers: users, totalUsers });
+    } catch (error) {
+      return res
+        .status(500)
+        .json({ message: "Internal Server Error", error: error.messsage });
     }
   },
 };

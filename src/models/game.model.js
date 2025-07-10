@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const SeatModel = require('./seat.model');
+const mongoose = require("mongoose");
+const SeatModel = require("./seat.model");
 const gameSchema = new mongoose.Schema({
   gameName: {
     type: String,
@@ -11,28 +11,28 @@ const gameSchema = new mongoose.Schema({
   },
   gameImage: {
     type: String,
-    default: '',
+    default: "",
   },
   description: {
     type: String,
-    default: '',
+    default: "",
   },
   additionalInfo: {
     type: String,
-    default: '',
+    default: "",
   },
   universalGift: {
     type: String,
-    default: '',
+    default: "",
   },
   universalGiftImage: {
     type: String,
-    default: '',
+    default: "",
   },
   status: {
     type: String,
-    enum: ['active', 'ended'],
-    default: 'active',
+    enum: ["active", "ended"],
+    default: "active",
   },
   totalSeats: {
     type: Number,
@@ -49,20 +49,20 @@ const gameSchema = new mongoose.Schema({
   Approved_Users: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
     },
   ],
   //take the reference from the seats model
   seats: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Seat',
-    }
+      ref: "Seat",
+    },
   ],
   Pending_Requests: [
     {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Request',
+      ref: "Request",
     },
   ],
   createdAt: {
@@ -70,7 +70,7 @@ const gameSchema = new mongoose.Schema({
     default: Date.now,
   },
   isPinned: { type: Boolean, default: false },
-})
+});
 
-const Game = mongoose.model('Game', gameSchema);
+const Game = mongoose.model("Game", gameSchema);
 module.exports = Game;
