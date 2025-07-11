@@ -120,7 +120,7 @@ const createGameEmailTemplate = ({ gameName, description, gameImage }) => {
                                     <!-- Description -->
                                     <tr>
                                         <td style="padding-bottom: 35px;">
-                                            <p style="font-family: ${fontFamily}; font-size: 17px; color: black; line-height: 1.7; margin: 0; text-align: center;">
+                                            <p style="font-family: ${fontFamily}; font-size: 17px; color: #ffffff; line-height: 1.7; margin: 0; text-align: center;">
                                                 ${
                                                   description ||
                                                   "A new arena awaits your skills. Gather your team, sharpen your strategy, and fight for victory!"

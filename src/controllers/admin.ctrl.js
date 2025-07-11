@@ -166,71 +166,64 @@ const AdminController = {
       gameImage,
     } = req.body;
 
-    console.log("Creating game with data:", {
-      gameName,
-      gameImage,
-      totalSeats,
-      freeSeats,
-      paidSeats,
-    });
-
-    if (!seats || seats.length === 0) {
-      return res.status(400).json({ message: "Please provide the seats" });
-    }
-    if (seats.length !== totalSeats) {
+    if (
+      gameName === undefined ||
+      totalSeats === undefined ||
+      freeSeats === undefined ||
+      paidSeats === undefined
+    ) {
       return res
         .status(400)
-        .json({ message: "Please provide the correct number of seats" });
+        .json({
+          message: "Game name, total, free, and paid seats are required.",
+        });
     }
 
-    if (!totalSeats || !freeSeats || !paidSeats || !gameName) {
-      return res.status(400).json({ message: "Please provide all the fields" });
-    }
-
-    // New validation for total seats vs free + paid seats
-    if (totalSeats < freeSeats + paidSeats) {
+    if (Number(totalSeats) !== Number(freeSeats) + Number(paidSeats)) {
       return res.status(400).json({
-        message: "Total seats should be greater than free and paid seats",
+        message: `Seat count mismatch: Total (${totalSeats}) must equal Free (${freeSeats}) + Paid (${paidSeats}).`,
       });
     }
 
-    // Validate if number of paid seats matches seats with prices
-    const paidSeatsInArray = seats.filter((seat) => seat.price > 0).length;
-    if (paidSeatsInArray !== paidSeats) {
+    if (!seats || seats.length !== Number(totalSeats)) {
       return res.status(400).json({
-        message: `Number of paid seats (${paidSeats}) does not match seats with prices (${paidSeatsInArray})`,
+        message: `The 'seats' array must be provided and its length (${
+          seats ? seats.length : 0
+        }) must match the total number of seats (${totalSeats}).`,
       });
     }
 
-    // Validate that paid seats have valid prices
+    const paidSeatsInArray = seats.filter((seat) => seat.isPaid).length;
+    if (paidSeatsInArray !== Number(paidSeats)) {
+      return res.status(400).json({
+        message: `The number of seats marked as paid (${paidSeatsInArray}) does not match the specified paid seats count (${paidSeats}).`,
+      });
+    }
+
     const invalidPricedSeats = seats.filter(
-      (seat) => seat.price <= 0 && seat.isPaid
+      (seat) => seat.isPaid && (seat.price === undefined || seat.price < 0)
     );
     if (invalidPricedSeats.length > 0) {
       return res
         .status(400)
-        .json({ message: "All paid seats must have a valid price" });
+        .json({
+          message: "All paid seats must have a valid price (0 or greater).",
+        });
     }
 
     try {
       const gameId = await GenerateGameID();
-      const isValidSeats = ValidateSeats(seats, res);
-      if (!isValidSeats) {
-        return res
-          .status(400)
-          .json({ message: "Please provide valid seat number and price" });
-      }
       const userId = req.user._id;
 
-      // Create seats first
       const createdSeats = await SeatModel.create(
         seats.map((seat) => ({
           seatNumber: seat.seatNumber,
-          price: seat.price,
+          price: seat.isPaid ? seat.price : 0,
           gift: seat?.gift || universalGift || null,
           giftImage: seat?.giftImage || universalGiftImage || null,
         }))
-      ); // Create game with seat references
+      );
+
       const game = await GameModel.create({
         gameName,
         gameId,
@@ -245,6 +238,7 @@ const AdminController = {
         paidSeats,
         seats: createdSeats.map((seat) => seat._id),
       });
+
       const users = await UserModel.find({}, "email");
       await sendGameNotification(users, {
         id: game?.id,
@@ -252,14 +246,16 @@ const AdminController = {
         description: game?.description,
         gameImage: game?.gameImage,
       });
+
       return res
         .status(200)
         .json({ message: "Game created successfully", game });
     } catch (error) {
-      console.error(error);
+      console.error("Error creating game:", error);
       return res.status(500).json({ message: "Internal server error" });
     }
   },
+
   EndGame: async (req, res) => {
     const gameId = req.params.gameId;
     if (!gameId) {
